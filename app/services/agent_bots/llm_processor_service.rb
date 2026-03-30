@@ -48,10 +48,22 @@ class AgentBots::LlmProcessorService
                                              .map { |m| { role: m.incoming? ? 'user' : 'assistant', content: m.content } }
   end
 
+  def portal
+    @portal ||= @conversation.inbox.portal
+  end
+
+  def knowledge_base_tools
+    return [] if portal.nil?
+
+    [AgentBots::Tools::SearchKnowledgeBaseTool.new(portal)]
+  end
+
   def generate_response
     Llm::Config.with_api_key(api_key, api_base: api_base) do |context|
       chat = context.chat(model: model)
       chat.with_instructions(system_prompt)
+
+      knowledge_base_tools.each { |tool| chat = chat.with_tool(tool) }
 
       messages = conversation_messages
       return nil if messages.empty?

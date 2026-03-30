@@ -59,9 +59,16 @@ class AgentBotListener < BaseListener
   end
 
   def process_message_event(method_name, agent_bot, message, _event)
-    # Only webhook bots are supported
-    payload = message.webhook_data.merge(event: method_name)
-    process_webhook_bot_event(agent_bot, payload)
+    if agent_bot.llm?
+      process_llm_bot_event(agent_bot, message.conversation)
+    else
+      payload = message.webhook_data.merge(event: method_name)
+      process_webhook_bot_event(agent_bot, payload)
+    end
+  end
+
+  def process_llm_bot_event(agent_bot, conversation)
+    AgentBots::LlmResponseJob.perform_later(conversation, agent_bot)
   end
 
   def process_webhook_bot_event(agent_bot, payload)
